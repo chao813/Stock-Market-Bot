@@ -4,11 +4,11 @@ from api.api import api_bp
 
 
 app = Flask(__name__)
-app.config.from_object('config')
-app.register_blueprint(api_bp, url_prefix='/api')
-app.register_blueprint(stocks_bp, url_prefix='/stocks')
+app.config.from_object("config")
+app.register_blueprint(api_bp, url_prefix="/api")
+app.register_blueprint(stocks_bp, url_prefix="/stocks")
 
-@app.route('/')
+@app.route("/")
 def index():
     return "This is an example app"
 
