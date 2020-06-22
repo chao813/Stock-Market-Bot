@@ -1,10 +1,12 @@
 import requests
 import os
 import json
+import sqlite3 as sql
+import config
 
 from flask import Blueprint, request, jsonify
 from dotenv import load_dotenv
-from stocks.stocks import get_stock_quote, calculate_percent_change
+from stocks.stocks import get_stock_quote, calculate_percent_change, validate_stock_symbol, insert_stock_tracker, filter_tracked_stocks_details
 
 load_dotenv()
 
@@ -21,7 +23,7 @@ def check_stock_difference():
     POST request Body
         {
             "symbol": "F",
-            "average cost": 6.00,
+            "average cost": 5.00,
             "percent": 5,
         }
     """
@@ -41,14 +43,23 @@ def check_stock_difference():
     return resp
 
 
-#@api_bp.route("/stocks/tracker", methods=["GET"])
-#def get_tracked_stocks() show me all the ones im tracking, dont show percent diff
-    #if no param included = show all, if param included then filter
+@api_bp.route("/stocks/tracked", methods=["GET"])
+def get_tracked_stocks(): 
+    """
+    Show me all the stocks im tracking, filter by params
+    Params: symbol, detailed = True/False 
+    If "detailed" = True, show percent difference and last modified date
+    """
+    symbol = request.args['symbol']
+    detailed = request.args['detailed']
+    
+    tracked_stocks_list = filter_tracked_stocks_details(symbol, detailed)
+    if not tracked_stocks_list:
+        return jsonify({}), 404
 
-
-#@api_bp.route("/stocks/tracker", methods=["GET"])
-#def get_tracked_stocks_differences() show me all the ones im tracking, show percent diff
-    #if no param included = show all, if param included then filter
+    resp = jsonify({"status": "success", "data": tracked_stocks_list})
+    resp.status_code = 200 
+    return resp
 
     
 @api_bp.route("/stocks/tracker", methods=["POST"])
@@ -64,13 +75,31 @@ def post_data_save_db():
         }
     Save values to database
     """
-    data = request.get_json()
+    if request.method == 'POST':
+        data = request.get_json()
 
-    symbol = data["symbol"]
-    average_cost = data["average cost"] 
-    percent = data["percent"]
-    increase = data["increase"]
-    decrease = data["decrease"]
+        symbol = data["symbol"]
+        average_cost = data["average cost"] 
+        percent = data["percent"]  
+        increase = 1 if data["increase"] else 0
+        decrease = 1 if data["decrease"] else 0
+
+        name = validate_stock_symbol(symbol)
+        if not name:
+            return jsonify({"Error": "You entered an invalid stock symbol: {symbol}".format(symbol=symbol)}), 404
+        
+        with sql.connect(config.DATABASE) as con: 
+            cur = con.cursor()
+            cur.execute("INSERT OR IGNORE INTO stock (symbol,name) VALUES (?,?)",(symbol, name))
+            con.commit()
+            cur.execute("SELECT id FROM stock WHERE symbol=? AND name=?", [symbol, name,])
+            stock_id = cur.fetchone()[0]
+            insert_stock_tracker(stock_id, average_cost, percent, increase, decrease)
+            
+            resp = jsonify({"status": "success"})
+            resp.status_code = 200
+            return resp
+            con.close()
+
+
     
-    #save to db code here
-    return 
