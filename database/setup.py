@@ -35,17 +35,13 @@ def main():
     database = os.path.dirname(PATH) + "/stocks.db" 
     create_table_sql_file = open(PATH + "/create_tables.sql", "r") # dir path + "database/create_tables.sql, import config.py and pass sql variable"
 
-    # create a database connection
     conn = create_connection(database)
 
-    # create tables
-    if conn is not None:
-        # create projects table
-        create_tables(conn, create_table_sql_file.read())
-
-    else:
+    if conn is None:
         print("Error! cannot create the database connection.")
 
+    create_tables(conn, create_table_sql_file.read())
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
