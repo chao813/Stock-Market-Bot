@@ -44,10 +44,7 @@ def get_stock_name(symbol):
     """
     r = requests.get(STOCK_PROFILE_URL.format(token=FINNHUB_TOKEN, symbol=symbol))
     response = r.json()
-    if response: 
-        return response.get("name")
-    return 
-
+    return response.get("name")
 
 
 def calculate_percent_change(response, average_cost):
