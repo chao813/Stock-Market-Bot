@@ -12,7 +12,7 @@ load_dotenv()
 
 api_bp = Blueprint("api_bp", __name__)
 
-@api_bp.route("/healthcheck")
+@api_bp.route("/")
 def healthcheck():
     return jsonify({"status": "ok"}), 200
 
@@ -30,7 +30,7 @@ def check_stock_difference():
     data = request.get_json()
 
     symbol = data["symbol"]
-    average_cost = float(data["average_cost"] )
+    average_cost = float(data["average_cost"])
     percent = data["percent"]
 
     response = get_stock_quote(symbol)

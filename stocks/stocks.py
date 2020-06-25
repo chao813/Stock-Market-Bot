@@ -77,7 +77,7 @@ def get_tracked_stocks_details(detailed, symbol=None):
     cur = con.cursor()
         
     if symbol:
-        cur.execute("SELECT * FROM stock_tracker JOIN stock ON (stock.id = stock_tracker.stock_id) WHERE stock.symbol=?", [symbol]) 
+        cur.execute("SELECT * FROM stock_tracker JOIN stock ON stock.id = stock_tracker.stock_id WHERE stock.symbol=?", [symbol]) 
         tracked_stocks = [cur.fetchone()]
     else:
         cur.execute("SELECT * FROM stock_tracker")
