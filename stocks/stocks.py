@@ -4,9 +4,7 @@ import json
 import sqlite3 as sql
 import config
 
-from flask import Blueprint, request
 from dotenv import load_dotenv
-
 
 load_dotenv()
 
@@ -14,12 +12,6 @@ FINNHUB_TOKEN = os.getenv("FINNHUB_TOKEN")
 
 STOCK_QUOTE_URL = "https://finnhub.io/api/v1/quote?token={token}&symbol={symbol}"
 STOCK_PROFILE_URL = "https://finnhub.io/api/v1/stock/profile2?token={token}&symbol={symbol}"
-
-stocks_bp = Blueprint("stocks_bp", __name__)
-
-@stocks_bp.route("/example")
-def index():
-    return "This is an example stock app"
 
 def get_stock_quote(symbol):
     """
@@ -47,17 +39,17 @@ def get_stock_name(symbol):
     return response.get("name")
 
 
-def calculate_percent_change(response, average_cost):
+def calculate_percent_change(response, avg_purchase_cost):
     """
     Calculate percent change in stock compared to average cost
     """
     current_price = response["c"]
-    difference = current_price - average_cost
-    percent_difference = round(difference / average_cost * 100, 2)
+    difference = current_price - avg_purchase_cost
+    percent_difference = round(difference / avg_purchase_cost * 100, 2)
     return percent_difference
     
 
-def insert_stock_tracker(stock_id, average_cost, percent, increase, decrease):
+def insert_stock_tracker(stock_id, avg_purchase_cost, percent, increase, decrease):
     """
     Insert tracked stock average cost, percent, increase, decrease into database
     """
@@ -68,12 +60,23 @@ def insert_stock_tracker(stock_id, average_cost, percent, increase, decrease):
     if cur.fetchone():
         cur.execute("DELETE FROM stock_tracker WHERE stock_id=?", [stock_id])
         con.commit()
-    cur.execute("INSERT INTO stock_tracker (average_cost, percent, increase, decrease, stock_id) VALUES(?,?,?,?,?)", (average_cost, percent, increase, decrease, stock_id))
+    cur.execute("INSERT INTO stock_tracker (avg_purchase_cost, percent, increase, decrease, stock_id) VALUES(?,?,?,?,?)", (avg_purchase_cost, percent, increase, decrease, stock_id))
     con.commit()
 
 
-def get_tracked_stocks_details(detailed, symbol=None):
+def dict_factory(cursor, row):
+    """
+    Create dict from SQLite query
+    """
+    d = {}
+    for idx, col in enumerate(cursor.description):
+        d[col[0]] = row[idx]
+    return d
+
+
+def get_list_of_tracked_stocks(symbol):
     con = sql.connect(config.DATABASE) 
+    con.row_factory = dict_factory
     cur = con.cursor()
         
     if symbol:
@@ -82,35 +85,52 @@ def get_tracked_stocks_details(detailed, symbol=None):
     else:
         cur.execute("SELECT * FROM stock_tracker")
         tracked_stocks = cur.fetchall()
+    
+    return tracked_stocks
+
+def construct_tracked_stocks_response(tracked_stocks, detailed):
+    con = sql.connect(config.DATABASE) 
+    con.row_factory = dict_factory
+    cur = con.cursor()
 
     if any(stock is None for stock in tracked_stocks):
         return 
 
     tracked_stocks_list = []
     for stock_details in tracked_stocks:
-        cur.execute("SELECT symbol, name FROM stock WHERE id=?", [stock_details[6]]) 
+        cur.execute("SELECT symbol, name FROM stock WHERE id=?", [stock_details.get("stock_id")]) 
         stock_profile = cur.fetchone()
-        symbol = stock_profile[0]
-        name = stock_profile[1]
-        average_cost = stock_details[1]
-        percent = stock_details[2]
-        increase = bool(stock_details[3])
-        decrease = bool(stock_details[4])
-        last_modified = stock_details[5]
+        symbol = stock_profile.get("symbol")
+        name = stock_profile.get("name")
+        avg_purchase_cost = stock_details.get("avg_purchase_cost")
+        percent = stock_details.get("percent")
+        increase = bool(stock_details.get("increase"))
+        decrease = bool(stock_details.get("decrease"))
+        last_modified = stock_details.get("last_modified")
 
+        response = get_stock_quote(symbol)
+        if not response:
+            return jsonify({"error": f"You are tracking an invalid stock symbol: {symbol}"}), 404       
+        tracked_stock_dict = {"symbol": symbol, "name": name}
+        
         if detailed:
-            response = get_stock_quote(symbol)
-            if not response:
-                return jsonify({"error": f"You are tracking an invalid stock symbol: {symbol}"}), 404        
-            percent_difference = calculate_percent_change(response, average_cost)
-            tracked_stocks_list.append({"symbol": symbol, "name": name, "percent_difference": percent_difference,
-                                        "last_modified": last_modified, "alert_on_increase": increase, 
-                                        "alert_on_decrease": decrease, "average_cost": average_cost, 
-                                        "percent_to_track_threshold": percent})
-        else:
-            tracked_stocks_list.append({"symbol": symbol, "name": name})
+            percent_difference = calculate_percent_change(response, avg_purchase_cost)
+            tracked_stock_dict["percent_difference"] = percent_difference
+            tracked_stock_dict["last_modified"] = last_modified
+            tracked_stock_dict["alert_on_increase"] = increase
+            tracked_stock_dict["alert_on_decrease"] = decrease
+            tracked_stock_dict["avg_purchase_cost"] = avg_purchase_cost
+            tracked_stock_dict["percent_to_track_threshold"] = percent
+
+        tracked_stocks_list.append(tracked_stock_dict)
 
     return tracked_stocks_list
+
+
+def get_tracked_stocks_details(detailed, symbol=None):
+    tracked_stocks = get_list_of_tracked_stocks(symbol)
+    tracked_stocks_response = construct_tracked_stocks_response(tracked_stocks, detailed)
+    return tracked_stocks_response
 
 
 def trigger_alert(stocks_increased, stocks_decreased):

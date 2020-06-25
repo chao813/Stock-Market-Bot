@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS stock (
 -- Create tracked stocks table --
 CREATE TABLE IF NOT EXISTS stock_tracker (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    average_cost REAL NOT NULL,
+    avg_purchase_cost REAL NOT NULL,
     percent REAL NOT NULL,
     increase INTEGER,
     decrease INTEGER,

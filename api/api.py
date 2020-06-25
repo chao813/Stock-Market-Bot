@@ -12,7 +12,7 @@ load_dotenv()
 
 api_bp = Blueprint("api_bp", __name__)
 
-@api_bp.route("/")
+@api_bp.route("/healthcheck")
 def healthcheck():
     return jsonify({"status": "ok"}), 200
 
@@ -23,20 +23,20 @@ def check_stock_difference():
     POST request Body
         {
             "symbol": "F",
-            "average_cost": 5.00,
+            "avg_purchase_cost": 5.00,
             "percent": 5,
         }
     """
     data = request.get_json()
 
     symbol = data["symbol"]
-    average_cost = float(data["average_cost"])
+    avg_purchase_cost = float(data["avg_purchase_cost"])
     percent = data["percent"]
 
     response = get_stock_quote(symbol)
     if not response:
         return jsonify({"error": f"You entered an invalid stock symbol: {symbol}"}), 404
-    percent_difference = calculate_percent_change(response, average_cost)
+    percent_difference = calculate_percent_change(response, avg_purchase_cost)
 
     resp = jsonify({"status": "success", "data": {"symbol": symbol, 
                     "percent_difference": percent_difference}})
@@ -66,40 +66,40 @@ def get_tracked_stocks():
 @api_bp.route("/stocks/tracker", methods=["POST"])
 def store_new_stock():
     """
-    POST request Body
-        {
+    POST request Body, list of stocks to store
+        [{
             "symbol": "F",
-            "average_cost": 6.00,
+            "avg_purchase_cost": 6.00,
             "percent": 5,
             "increase": false,
             "decrease": true
-        }
+        },]
     Save values to database
     """
-    data = request.get_json()
+    stock_list = request.get_json()
+    for stock in stock_list:
+        symbol = stock["symbol"]
+        avg_purchase_cost = float(stock["avg_purchase_cost"])
+        percent = stock["percent"]  
+        increase = 1 if stock["increase"] else 0
+        decrease = 1 if stock["decrease"] else 0
 
-    symbol = data["symbol"]
-    average_cost = float(data["average_cost"])
-    percent = data["percent"]  
-    increase = 1 if data["increase"] else 0
-    decrease = 1 if data["decrease"] else 0
-
-    name = get_stock_name(symbol)
-    if not name:
-        return jsonify({"error": f"You entered an invalid stock symbol: {symbol}"}), 404
-    
-    with sql.connect(config.DATABASE) as con: 
+        name = get_stock_name(symbol)
+        if not name:
+            return jsonify({"error": f"You entered an invalid stock symbol: {symbol}"}), 404
+        
+        con = sql.connect(config.DATABASE) 
         cur = con.cursor()
         cur.execute("INSERT OR IGNORE INTO stock (symbol,name) VALUES (?,?)",(symbol, name))
         con.commit()
         cur.execute("SELECT id FROM stock WHERE symbol=? AND name=?", [symbol, name,])
         stock_id = cur.fetchone()[0]
-        insert_stock_tracker(stock_id, average_cost, percent, increase, decrease)
-        
-        resp = jsonify({"status": "success"})
-        resp.status_code = 200
-        return resp
-        con.close()
+        insert_stock_tracker(stock_id, avg_purchase_cost, percent, increase, decrease)
+                    
+    resp = jsonify({"status": "success"})
+    resp.status_code = 200
+    return resp
+    con.close()
 
 
     
