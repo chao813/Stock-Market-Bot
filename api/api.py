@@ -54,7 +54,7 @@ def get_tracked_stocks():
     symbol = request.args["symbol"]
     detailed = request.args["detailed"]
     
-    tracked_stocks_list = get_tracked_stocks_details(detailed=detailed, symbol=symbol)
+    tracked_stocks_list = get_tracked_stocks_details(detailed, symbol)
     if not tracked_stocks_list:
         return jsonify({}), 404
 

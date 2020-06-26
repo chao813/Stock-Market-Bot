@@ -56,11 +56,8 @@ def insert_stock_tracker(stock_id, avg_purchase_cost, percent, increase, decreas
     con = sql.connect(config.DATABASE) 
     cur = con.cursor()
     
-    cur.execute("SELECT id FROM stock_tracker WHERE stock_id=?", [stock_id]) 
-    if cur.fetchone():
-        cur.execute("DELETE FROM stock_tracker WHERE stock_id=?", [stock_id])
-        con.commit()
-    cur.execute("INSERT INTO stock_tracker (avg_purchase_cost, percent, increase, decrease, stock_id) VALUES(?,?,?,?,?)", (avg_purchase_cost, percent, increase, decrease, stock_id))
+    #cur.execute("INSERT INTO stock_tracker (avg_purchase_cost, percent, increase, decrease, stock_id) VALUES(?,?,?,?,?) ON CONFLICT (stock_id) DO UPDATE SET id=id, avg_purchase_cost=? AND percent=? AND increase=? AND decrease=?",(avg_purchase_cost, percent, increase, decrease, stock_id, avg_purchase_cost, percent, increase, decrease))
+    cur.execute("REPLACE INTO stock_tracker (avg_purchase_cost, percent, increase, decrease, stock_id) VALUES(?,?,?,?,?)", (avg_purchase_cost, percent, increase, decrease, stock_id))
     con.commit()
 
 
@@ -87,6 +84,7 @@ def get_list_of_tracked_stocks(symbol):
         tracked_stocks = cur.fetchall()
     
     return tracked_stocks
+
 
 def construct_tracked_stocks_response(tracked_stocks, detailed):
     con = sql.connect(config.DATABASE) 
@@ -170,9 +168,11 @@ def get_tracked_stocks():
     stocks_increased = []
     stocks_decreased = []
     for stock_detail in tracked_stocks_list:
-        if stock_detail.get("alert_on_increase") and stock_detail.get("percent_difference") >= stock_detail.get("percent_to_track_threshold") and stock_detail.get("percent_difference") > 0:
-            stocks_increased.append({"symbol": stock_detail.get("symbol"), "name": stock_detail.get("name"), "percent_increase": stock_detail.get("percent_difference")})
-        if stock_detail.get("alert_on_decrease") and abs(stock_detail.get("percent_difference")) >= stock_detail.get("percent_to_track_threshold") and stock_detail.get("percent_difference") < 0:
-            stocks_decreased.append({"symbol": stock_detail.get("symbol"), "name": stock_detail.get("name"), "percent_decrease": stock_detail.get("percent_difference")})
+        if stock_detail.get("alert_on_increase"):
+            if stock_detail.get("percent_difference") >= stock_detail.get("percent_to_track_threshold") and stock_detail.get("percent_difference") > 0:
+                stocks_increased.append({"symbol": stock_detail.get("symbol"), "name": stock_detail.get("name"), "percent_increase": stock_detail.get("percent_difference")})
+        if stock_detail.get("alert_on_decrease"):
+            if abs(stock_detail.get("percent_difference")) >= stock_detail.get("percent_to_track_threshold") and stock_detail.get("percent_difference") < 0:
+                stocks_decreased.append({"symbol": stock_detail.get("symbol"), "name": stock_detail.get("name"), "percent_decrease": stock_detail.get("percent_difference")})
 
     return trigger_alert(stocks_increased, stocks_decreased)

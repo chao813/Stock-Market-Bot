@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS stock_tracker (
     increase INTEGER,
     decrease INTEGER,
     last_modified TEXT DEFAULT (datetime('now','localtime')),
-    stock_id INTEGER NOT NULL,
+    stock_id INTEGER NOT NULL UNIQUE,
     FOREIGN KEY (stock_id) REFERENCES stock (id) ON DELETE CASCADE
 );
 
