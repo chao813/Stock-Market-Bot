@@ -1,7 +1,178 @@
-from flask import Blueprint
+import requests
+import os
+import json
+import sqlite3 as sql
+import config
 
-stocks_bp = Blueprint('stocks_bp', __name__)
+from dotenv import load_dotenv
 
-@stocks_bp.route('/')
-def index():
-    return "This is an example stock app"
+load_dotenv()
+
+FINNHUB_TOKEN = os.getenv("FINNHUB_TOKEN")
+
+STOCK_QUOTE_URL = "https://finnhub.io/api/v1/quote?token={token}&symbol={symbol}"
+STOCK_PROFILE_URL = "https://finnhub.io/api/v1/stock/profile2?token={token}&symbol={symbol}"
+
+def get_stock_quote(symbol):
+    """
+    Get real-time quote data for a given stock symbol
+    response = {
+        "c": 261.74,
+        "h": 263.31,
+        "l": 260.68,
+        "o": 261.07,
+        "pc": 259.45,
+        "t": 1582641000 
+    }
+    """
+    r = requests.get(STOCK_QUOTE_URL.format(token=FINNHUB_TOKEN, symbol=symbol))
+    response = r.json()
+    return response
+
+
+def get_stock_name(symbol):
+    """
+    Make sure symbol is trackable
+    """
+    r = requests.get(STOCK_PROFILE_URL.format(token=FINNHUB_TOKEN, symbol=symbol))
+    response = r.json()
+    return response.get("name")
+
+
+def calculate_percent_change(response, avg_purchase_cost):
+    """
+    Calculate percent change in stock compared to average cost
+    """
+    current_price = response["c"]
+    difference = current_price - avg_purchase_cost
+    percent_difference = round(difference / avg_purchase_cost * 100, 2)
+    return percent_difference
+    
+
+def insert_stock_tracker(stock_id, avg_purchase_cost, percent, increase, decrease):
+    """
+    Insert tracked stock average cost, percent, increase, decrease into database
+    """
+    con = sql.connect(config.DATABASE) 
+    cur = con.cursor()
+    
+    #cur.execute("INSERT INTO stock_tracker (avg_purchase_cost, percent, increase, decrease, stock_id) VALUES(?,?,?,?,?) ON CONFLICT (stock_id) DO UPDATE SET id=id, avg_purchase_cost=? AND percent=? AND increase=? AND decrease=?",(avg_purchase_cost, percent, increase, decrease, stock_id, avg_purchase_cost, percent, increase, decrease))
+    cur.execute("REPLACE INTO stock_tracker (avg_purchase_cost, percent, increase, decrease, stock_id) VALUES(?,?,?,?,?)", (avg_purchase_cost, percent, increase, decrease, stock_id))
+    con.commit()
+
+
+def dict_factory(cursor, row):
+    """
+    Create dict from SQLite query
+    """
+    d = {}
+    for idx, col in enumerate(cursor.description):
+        d[col[0]] = row[idx]
+    return d
+
+
+def get_list_of_tracked_stocks(symbol):
+    con = sql.connect(config.DATABASE) 
+    con.row_factory = dict_factory
+    cur = con.cursor()
+        
+    if symbol:
+        cur.execute("SELECT * FROM stock_tracker JOIN stock ON stock.id = stock_tracker.stock_id WHERE stock.symbol=?", [symbol]) 
+        tracked_stocks = [cur.fetchone()]
+    else:
+        cur.execute("SELECT * FROM stock_tracker")
+        tracked_stocks = cur.fetchall()
+    
+    return tracked_stocks
+
+
+def construct_tracked_stocks_response(tracked_stocks, detailed):
+    con = sql.connect(config.DATABASE) 
+    con.row_factory = dict_factory
+    cur = con.cursor()
+
+    if any(stock is None for stock in tracked_stocks):
+        return 
+
+    tracked_stocks_list = []
+    for stock_details in tracked_stocks:
+        cur.execute("SELECT symbol, name FROM stock WHERE id=?", [stock_details.get("stock_id")]) 
+        stock_profile = cur.fetchone()
+        symbol = stock_profile.get("symbol")
+        name = stock_profile.get("name")
+        avg_purchase_cost = stock_details.get("avg_purchase_cost")
+        percent = stock_details.get("percent")
+        increase = bool(stock_details.get("increase"))
+        decrease = bool(stock_details.get("decrease"))
+        last_modified = stock_details.get("last_modified")
+
+        response = get_stock_quote(symbol)
+        if not response:
+            return jsonify({"error": f"You are tracking an invalid stock symbol: {symbol}"}), 404       
+        tracked_stock_dict = {"symbol": symbol, "name": name}
+        
+        if detailed:
+            percent_difference = calculate_percent_change(response, avg_purchase_cost)
+            tracked_stock_dict["percent_difference"] = percent_difference
+            tracked_stock_dict["last_modified"] = last_modified
+            tracked_stock_dict["alert_on_increase"] = increase
+            tracked_stock_dict["alert_on_decrease"] = decrease
+            tracked_stock_dict["avg_purchase_cost"] = avg_purchase_cost
+            tracked_stock_dict["percent_to_track_threshold"] = percent
+
+        tracked_stocks_list.append(tracked_stock_dict)
+
+    return tracked_stocks_list
+
+
+def get_tracked_stocks_details(detailed, symbol=None):
+    tracked_stocks = get_list_of_tracked_stocks(symbol)
+    tracked_stocks_response = construct_tracked_stocks_response(tracked_stocks, detailed)
+    return tracked_stocks_response
+
+
+def trigger_alert(stocks_increased, stocks_decreased):
+    """
+    Trigger alert given tracked stocks that increased or decreased
+    """
+    increase_alert_message = ""
+    decrease_alert_message = ""
+
+    if stocks_increased:    
+        increase_alert_message = "Stocks increased: \n"
+        for stock in stocks_increased:
+            increase_alert_message = (increase_alert_message + 
+                                    "[{symbol}]{name} went up {emoji}{percent_increase}% \n".format(
+                                    symbol=stock.get("symbol"), name=stock.get("name"), emoji=u'\u2191', 
+                                    percent_increase=str(stock.get("percent_increase"))))
+
+    if stocks_decreased:
+        decrease_alert_message = "Stocks decreased: \n"
+        for stock in stocks_decreased:
+            decrease_alert_message = (decrease_alert_message + 
+                                    "[{symbol}]{name} went down {emoji}{percent_increase}% \n".format(
+                                    symbol=stock.get("symbol"), name=stock.get("name"), emoji=u'\u2193', 
+                                    percent_increase=str(stock.get("percent_decrease"))))
+    
+    return increase_alert_message + "\n" + decrease_alert_message 
+
+
+def get_tracked_stocks():
+    """
+    Run calculation of percent change for each tracked stock
+    Trigger alert if increase or decrease is enabled and percent threshold is met
+    Cron will call this function
+    """
+    tracked_stocks_list = get_tracked_stocks_details(detailed=True)
+    
+    stocks_increased = []
+    stocks_decreased = []
+    for stock_detail in tracked_stocks_list:
+        if stock_detail.get("alert_on_increase"):
+            if stock_detail.get("percent_difference") >= stock_detail.get("percent_to_track_threshold") and stock_detail.get("percent_difference") > 0:
+                stocks_increased.append({"symbol": stock_detail.get("symbol"), "name": stock_detail.get("name"), "percent_increase": stock_detail.get("percent_difference")})
+        if stock_detail.get("alert_on_decrease"):
+            if abs(stock_detail.get("percent_difference")) >= stock_detail.get("percent_to_track_threshold") and stock_detail.get("percent_difference") < 0:
+                stocks_decreased.append({"symbol": stock_detail.get("symbol"), "name": stock_detail.get("name"), "percent_decrease": stock_detail.get("percent_difference")})
+
+    return trigger_alert(stocks_increased, stocks_decreased)
