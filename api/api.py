@@ -7,6 +7,7 @@ import config
 from flask import Blueprint, request, jsonify
 from dotenv import load_dotenv
 from stocks.stocks import get_stock_quote, calculate_percent_change, get_stock_name, insert_stock_tracker, get_tracked_stocks_details
+from database.database import Database
 
 load_dotenv()
 
@@ -88,18 +89,14 @@ def store_new_stock():
         if not name:
             return jsonify({"error": f"You entered an invalid stock symbol: {symbol}"}), 404
         
-        con = sql.connect(config.DATABASE) 
-        cur = con.cursor()
-        cur.execute("INSERT OR IGNORE INTO stock (symbol,name) VALUES (?,?)",(symbol, name))
-        con.commit()
-        cur.execute("SELECT id FROM stock WHERE symbol=? AND name=?", [symbol, name,])
-        stock_id = cur.fetchone()[0]
-        insert_stock_tracker(stock_id, avg_purchase_cost, percent, increase, decrease)
+        with Database(config.DATABASE) as db:
+            db.execute("INSERT OR IGNORE INTO stock (symbol,name) VALUES (?,?)",(symbol, name))
+            db.execute("SELECT id FROM stock WHERE symbol=? AND name=?", [symbol, name,])
+            stock_id = db.fetchone()
+        insert_stock_tracker(stock_id.get("id"), avg_purchase_cost, percent, increase, decrease)
                     
     resp = jsonify({"status": "success"})
     resp.status_code = 200
     return resp
-    con.close()
-
 
     

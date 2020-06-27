@@ -5,6 +5,7 @@ import sqlite3 as sql
 import config
 
 from dotenv import load_dotenv
+from database.database import Database
 
 load_dotenv()
 
@@ -53,51 +54,32 @@ def insert_stock_tracker(stock_id, avg_purchase_cost, percent, increase, decreas
     """
     Insert tracked stock average cost, percent, increase, decrease into database
     """
-    con = sql.connect(config.DATABASE) 
-    cur = con.cursor()
-    
-    #cur.execute("INSERT INTO stock_tracker (avg_purchase_cost, percent, increase, decrease, stock_id) VALUES(?,?,?,?,?) ON CONFLICT (stock_id) DO UPDATE SET id=id, avg_purchase_cost=? AND percent=? AND increase=? AND decrease=?",(avg_purchase_cost, percent, increase, decrease, stock_id, avg_purchase_cost, percent, increase, decrease))
-    cur.execute("REPLACE INTO stock_tracker (avg_purchase_cost, percent, increase, decrease, stock_id) VALUES(?,?,?,?,?)", (avg_purchase_cost, percent, increase, decrease, stock_id))
-    con.commit()
-
-
-def dict_factory(cursor, row):
-    """
-    Create dict from SQLite query
-    """
-    d = {}
-    for idx, col in enumerate(cursor.description):
-        d[col[0]] = row[idx]
-    return d
+    with Database(config.DATABASE) as db:
+        db.execute("REPLACE INTO stock_tracker (avg_purchase_cost, percent, increase, decrease, stock_id) VALUES(?,?,?,?,?)", (avg_purchase_cost, percent, increase, decrease, stock_id))
 
 
 def get_list_of_tracked_stocks(symbol):
-    con = sql.connect(config.DATABASE) 
-    con.row_factory = dict_factory
-    cur = con.cursor()
-        
-    if symbol:
-        cur.execute("SELECT * FROM stock_tracker JOIN stock ON stock.id = stock_tracker.stock_id WHERE stock.symbol=?", [symbol]) 
-        tracked_stocks = [cur.fetchone()]
-    else:
-        cur.execute("SELECT * FROM stock_tracker")
-        tracked_stocks = cur.fetchall()
+    with Database(config.DATABASE) as db:
+        if symbol:
+            db.execute("SELECT * FROM stock_tracker JOIN stock ON stock.id = stock_tracker.stock_id WHERE stock.symbol=?", [symbol]) 
+            tracked_stocks = [db.fetchone()]
+        else:
+            db.execute("SELECT * FROM stock_tracker")
+            tracked_stocks = db.fetchall()
     
     return tracked_stocks
 
 
 def construct_tracked_stocks_response(tracked_stocks, detailed):
-    con = sql.connect(config.DATABASE) 
-    con.row_factory = dict_factory
-    cur = con.cursor()
-
     if any(stock is None for stock in tracked_stocks):
         return 
 
     tracked_stocks_list = []
     for stock_details in tracked_stocks:
-        cur.execute("SELECT symbol, name FROM stock WHERE id=?", [stock_details.get("stock_id")]) 
-        stock_profile = cur.fetchone()
+        with Database(config.DATABASE) as db:
+            db.execute("SELECT symbol, name FROM stock WHERE id=?", [stock_details.get("stock_id")]) 
+            stock_profile = db.fetchone()
+            
         symbol = stock_profile.get("symbol")
         name = stock_profile.get("name")
         avg_purchase_cost = stock_details.get("avg_purchase_cost")
