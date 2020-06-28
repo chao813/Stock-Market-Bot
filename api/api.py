@@ -8,10 +8,17 @@ from flask import Blueprint, request, jsonify
 from dotenv import load_dotenv
 from stocks.stocks import get_stock_quote, calculate_percent_change, get_stock_name, insert_stock_tracker, get_tracked_stocks_details
 from database.database import Database
+from marshmallow import Schema, fields, INCLUDE, ValidationError
 
 load_dotenv()
 
 api_bp = Blueprint("api_bp", __name__)
+
+class StockDifferenceSchema(Schema):
+    symbol = fields.Str(required=True, error_messages={"required": "symbol is required."})
+    avg_purchase_cost = fields.Float(required=True, error_messages={"required": "avg_purchase_cost is required."})
+    percent = fields.Float(required=True, error_messages={"required": "percent is required."})
+
 
 @api_bp.route("/healthcheck")
 def healthcheck():
@@ -28,21 +35,25 @@ def check_stock_difference():
             "percent": 5,
         }
     """
-    data = request.get_json()
+    try:
+        data = StockDifferenceSchema().load(request.get_json())
+        symbol = data["symbol"]
+        avg_purchase_cost = float(data["avg_purchase_cost"])
+        percent = data["percent"]
 
-    symbol = data["symbol"]
-    avg_purchase_cost = float(data["avg_purchase_cost"])
-    percent = data["percent"]
+        response = get_stock_quote(symbol)
+        if not response:
+            return jsonify({"error": f"You entered an invalid stock symbol: {symbol}"}), 404
+        percent_difference = calculate_percent_change(response, avg_purchase_cost)
 
-    response = get_stock_quote(symbol)
-    if not response:
-        return jsonify({"error": f"You entered an invalid stock symbol: {symbol}"}), 404
-    percent_difference = calculate_percent_change(response, avg_purchase_cost)
+        resp = jsonify({"status": "success", "data": {"symbol": symbol, 
+                        "percent_difference": percent_difference}})
+        resp.status_code = 200 
+        return resp
+    except ValidationError as error:
+        resp = jsonify({"error": error.messages}), 400
+        return resp
 
-    resp = jsonify({"status": "success", "data": {"symbol": symbol, 
-                    "percent_difference": percent_difference}})
-    resp.status_code = 200 
-    return resp
 
 
 @api_bp.route("/stocks/track", methods=["GET"])
