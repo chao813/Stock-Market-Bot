@@ -6,19 +6,14 @@ import config
 
 from flask import Blueprint, request, jsonify
 from dotenv import load_dotenv
+from marshmallow import ValidationError
 from stocks.stocks import get_stock_quote, calculate_percent_change, get_stock_name, insert_stock_tracker, get_tracked_stocks_details
 from database.database import Database
-from marshmallow import Schema, fields, INCLUDE, ValidationError
+from api.schema import StockDifferenceSchema, AddStocksSchema
 
 load_dotenv()
 
 api_bp = Blueprint("api_bp", __name__)
-
-class StockDifferenceSchema(Schema):
-    symbol = fields.Str(required=True, error_messages={"required": "symbol is required."})
-    avg_purchase_cost = fields.Float(required=True, error_messages={"required": "avg_purchase_cost is required."})
-    percent = fields.Float(required=True, error_messages={"required": "percent is required."})
-
 
 @api_bp.route("/healthcheck")
 def healthcheck():
@@ -79,35 +74,50 @@ def get_tracked_stocks():
 def store_new_stock():
     """
     POST request Body, list of stocks to store
-        [{
-            "symbol": "F",
-            "avg_purchase_cost": 6.00,
-            "percent": 5,
-            "increase": false,
-            "decrease": true
-        },]
+        {
+            "stocks": [
+                {
+                    "symbol": "SNAP",
+                    "avg_purchase_cost": 1,
+                    "percent": 5,
+                    "increase": true,
+                    "decrease": true
+                },
+                {
+                    "symbol": "TWTR",
+                    "avg_purchase_cost": 1,
+                    "percent": 2,
+                    "increase": false,
+                    "decrease": false
+                }
+            ]
+        }
     Save values to database
     """
-    stock_list = request.get_json()
-    for stock in stock_list:
-        symbol = stock["symbol"]
-        avg_purchase_cost = float(stock["avg_purchase_cost"])
-        percent = stock["percent"]  
-        increase = 1 if stock["increase"] else 0
-        decrease = 1 if stock["decrease"] else 0
+    try:
+        stock_list = AddStocksSchema().load(request.get_json())
+        print(stock_list)
+        for stock in stock_list["stocks"]:
+            symbol = stock["symbol"]
+            avg_purchase_cost = float(stock["avg_purchase_cost"])
+            percent = stock["percent"]  
+            increase = 1 if stock["increase"] else 0
+            decrease = 1 if stock["decrease"] else 0
 
-        name = get_stock_name(symbol)
-        if not name:
-            return jsonify({"error": f"You entered an invalid stock symbol: {symbol}"}), 404
-        
-        with Database(config.DATABASE) as db:
-            db.execute("INSERT OR IGNORE INTO stock (symbol,name) VALUES (?,?)",(symbol, name))
-            db.execute("SELECT id FROM stock WHERE symbol=? AND name=?", [symbol, name,])
-            stock_id = db.fetchone()
-        insert_stock_tracker(stock_id.get("id"), avg_purchase_cost, percent, increase, decrease)
-                    
-    resp = jsonify({"status": "success"})
-    resp.status_code = 200
-    return resp
-
+            name = get_stock_name(symbol)
+            if not name:
+                return jsonify({"error": f"You entered an invalid stock symbol: {symbol}"}), 404
+            
+            with Database(config.DATABASE) as db:
+                db.execute("INSERT OR IGNORE INTO stock (symbol,name) VALUES (?,?)",(symbol, name))
+                db.execute("SELECT id FROM stock WHERE symbol=? AND name=?", [symbol, name,])
+                stock_id = db.fetchone()
+            insert_stock_tracker(stock_id.get("id"), avg_purchase_cost, percent, increase, decrease)
+                        
+        resp = jsonify({"status": "success"})
+        resp.status_code = 200
+        return resp
+    except ValidationError as error:
+        resp = jsonify({"error": error.messages}), 400
+        return resp
     
