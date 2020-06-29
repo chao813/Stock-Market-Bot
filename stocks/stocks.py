@@ -4,8 +4,10 @@ import json
 import sqlite3 as sql
 import config
 
+from flask import Blueprint, request, jsonify
 from dotenv import load_dotenv
 from database.database import Database
+from api.adapters import TimeoutHTTPAdapter, retries
 
 load_dotenv()
 
@@ -13,6 +15,9 @@ FINNHUB_TOKEN = os.getenv("FINNHUB_TOKEN")
 
 STOCK_QUOTE_URL = "https://finnhub.io/api/v1/quote?token={token}&symbol={symbol}"
 STOCK_PROFILE_URL = "https://finnhub.io/api/v1/stock/profile2?token={token}&symbol={symbol}"
+
+http = requests.Session()
+http.mount("https://", TimeoutHTTPAdapter(max_retries=retries))
 
 def get_stock_quote(symbol):
     """
@@ -26,7 +31,7 @@ def get_stock_quote(symbol):
         "t": 1582641000 
     }
     """
-    r = requests.get(STOCK_QUOTE_URL.format(token=FINNHUB_TOKEN, symbol=symbol))
+    r = http.get(STOCK_QUOTE_URL.format(token=FINNHUB_TOKEN, symbol=symbol))
     response = r.json()
     return response
 
@@ -35,7 +40,7 @@ def get_stock_name(symbol):
     """
     Make sure symbol is trackable
     """
-    r = requests.get(STOCK_PROFILE_URL.format(token=FINNHUB_TOKEN, symbol=symbol))
+    r = http.get(STOCK_PROFILE_URL.format(token=FINNHUB_TOKEN, symbol=symbol))
     response = r.json()
     return response.get("name")
 
@@ -79,7 +84,7 @@ def construct_tracked_stocks_response(tracked_stocks, detailed):
         with Database(config.DATABASE) as db:
             db.execute("SELECT symbol, name FROM stock WHERE id=?", [stock_details.get("stock_id")]) 
             stock_profile = db.fetchone()
-            
+
         symbol = stock_profile.get("symbol")
         name = stock_profile.get("name")
         avg_purchase_cost = stock_details.get("avg_purchase_cost")
@@ -89,8 +94,6 @@ def construct_tracked_stocks_response(tracked_stocks, detailed):
         last_modified = stock_details.get("last_modified")
 
         response = get_stock_quote(symbol)
-        if not response:
-            return jsonify({"error": f"You are tracking an invalid stock symbol: {symbol}"}), 404       
         tracked_stock_dict = {"symbol": symbol, "name": name}
         
         if detailed:

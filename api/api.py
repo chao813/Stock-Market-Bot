@@ -1,4 +1,3 @@
-import requests
 import os
 import json
 import sqlite3 as sql
@@ -32,7 +31,7 @@ def check_stock_difference():
     """
     try:
         data = StockDifferenceSchema().load(request.get_json())
-        symbol = data["symbol"]
+        symbol = data["symbol"].upper()
         avg_purchase_cost = float(data["avg_purchase_cost"])
         percent = data["percent"]
 
@@ -58,7 +57,7 @@ def get_tracked_stocks():
     Params: symbol, detailed = True/False 
     If "detailed" = True, show percent difference and last modified date
     """
-    symbol = request.args["symbol"]
+    symbol = request.args["symbol"].upper()
     detailed = request.args["detailed"]
     
     tracked_stocks_list = get_tracked_stocks_details(detailed, symbol)
@@ -96,9 +95,8 @@ def store_new_stock():
     """
     try:
         stock_list = AddStocksSchema().load(request.get_json())
-        print(stock_list)
         for stock in stock_list["stocks"]:
-            symbol = stock["symbol"]
+            symbol = stock["symbol"].upper()
             avg_purchase_cost = float(stock["avg_purchase_cost"])
             percent = stock["percent"]  
             increase = 1 if stock["increase"] else 0
