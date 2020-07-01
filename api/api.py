@@ -9,13 +9,17 @@ from marshmallow import ValidationError
 from stocks.stocks import get_stock_quote, calculate_percent_change, get_stock_name, insert_stock_tracker, get_tracked_stocks_details
 from database.database import Database
 from api.schema import StockDifferenceSchema, AddStocksSchema
+from logger import configure_logger, get_logger_with_context
 
 load_dotenv()
+logger = configure_logger()
 
 api_bp = Blueprint("api_bp", __name__)
 
 @api_bp.route("/healthcheck")
 def healthcheck():
+    logger = get_logger_with_context("")
+    logger.info("Health check status: OK")
     return jsonify({"status": "ok"}), 200
 
 
