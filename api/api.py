@@ -70,10 +70,14 @@ def get_tracked_stocks():
     
     tracked_stocks_list = get_tracked_stocks_details(detailed, symbol)
     if not tracked_stocks_list:
+        logger = get_logger_with_context("")
+        logger.info("Get Tracked Stocks - error: 404 Not Found")
         return jsonify({}), 404
 
     resp = jsonify({"status": "success", "data": tracked_stocks_list})
     resp.status_code = 200 
+    logger = get_logger_with_context("")
+    logger.info("Get Tracked Stocks - status: 200 OK, Tracked Stocks: {tracked_stocks_list}".format(tracked_stocks_list=tracked_stocks_list))
     return resp
 
     
