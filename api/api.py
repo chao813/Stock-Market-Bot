@@ -47,9 +47,13 @@ def check_stock_difference():
         resp = jsonify({"status": "success", "data": {"symbol": symbol, 
                         "percent_difference": percent_difference}})
         resp.status_code = 200 
+        logger = get_logger_with_context("")
+        logger.info("Check Stock Difference - status: 200 OK, Symbol: {symbol}, Percent Difference: {percent_difference}".format(symbol=symbol, percent_difference=percent_difference))
         return resp
     except ValidationError as error:
         resp = jsonify({"error": error.messages}), 400
+        logger = get_logger_with_context("")
+        logger.info("Check Stock Difference - error: 400 Bad Request")
         return resp
 
 
