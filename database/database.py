@@ -1,18 +1,21 @@
-import sqlite3 as sql
+import pymysql
+import pymysql.cursors
+import os
 
-def dict_factory(cursor, row):
-    """
-    Create dict from SQLite query
-    """
-    d = {}
-    for idx, col in enumerate(cursor.description):
-        d[col[0]] = row[idx]
-    return d
+from dotenv import load_dotenv
+
+load_dotenv()
+
+STOCKS_DB_PASSWORD = os.getenv("STOCKS_DB_PASSWORD")
 
 class Database:
     def __init__(self, name):
-        self._con = sql.connect(name) 
-        self._con.row_factory = dict_factory
+        self._con = pymysql.connect(host="127.0.0.1",
+                user="root",
+                password=STOCKS_DB_PASSWORD,
+                charset="utf8mb4",
+                db=name,
+                cursorclass=pymysql.cursors.DictCursor)
         self._cursor = self._con.cursor()
 
     def __enter__(self):

@@ -119,8 +119,8 @@ def store_new_stock():
                 return jsonify({"error": f"You entered an invalid stock symbol: {symbol}"}), 404
             
             with Database(config.DATABASE) as db:
-                db.execute("INSERT OR IGNORE INTO stock (symbol,name) VALUES (?,?)",(symbol, name))
-                db.execute("SELECT id FROM stock WHERE symbol=? AND name=?", [symbol, name,])
+                db.execute("INSERT IGNORE INTO stock (symbol,name) VALUES (%s, %s)",(symbol, name))
+                db.execute("SELECT id FROM stock WHERE symbol=%s AND name=%s", [symbol, name,])
                 stock_id = db.fetchone()
             insert_stock_tracker(stock_id.get("id"), avg_purchase_cost, percent, increase, decrease)
                         

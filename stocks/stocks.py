@@ -60,13 +60,13 @@ def insert_stock_tracker(stock_id, avg_purchase_cost, percent, increase, decreas
     Insert tracked stock average cost, percent, increase, decrease into database
     """
     with Database(config.DATABASE) as db:
-        db.execute("REPLACE INTO stock_tracker (avg_purchase_cost, percent, increase, decrease, stock_id) VALUES(?,?,?,?,?)", (avg_purchase_cost, percent, increase, decrease, stock_id))
+        db.execute("REPLACE INTO stock_tracker (avg_purchase_cost, percent, increase, decrease, stock_id) VALUES(%s,%s,%s,%s,%s)", (avg_purchase_cost, percent, increase, decrease, stock_id))
 
 
 def get_list_of_tracked_stocks(symbol):
     with Database(config.DATABASE) as db:
         if symbol:
-            db.execute("SELECT * FROM stock_tracker JOIN stock ON stock.id = stock_tracker.stock_id WHERE stock.symbol=?", [symbol]) 
+            db.execute("SELECT * FROM stock_tracker JOIN stock ON stock.id = stock_tracker.stock_id WHERE stock.symbol=%s", [symbol]) 
             tracked_stocks = [db.fetchone()]
         else:
             db.execute("SELECT * FROM stock_tracker")
@@ -82,7 +82,7 @@ def construct_tracked_stocks_response(tracked_stocks, detailed):
     tracked_stocks_list = []
     for stock_details in tracked_stocks:
         with Database(config.DATABASE) as db:
-            db.execute("SELECT symbol, name FROM stock WHERE id=?", [stock_details.get("stock_id")]) 
+            db.execute("SELECT symbol, name FROM stock WHERE id=%s", [stock_details.get("stock_id")]) 
             stock_profile = db.fetchone()
 
         symbol = stock_profile.get("symbol")
