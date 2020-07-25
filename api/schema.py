@@ -14,4 +14,3 @@ class StockDetailsSchema(Schema):
 
 class AddStocksSchema(Schema):
     stocks = fields.Nested(StockDetailsSchema, many=True, required=True, error_messages={"required": "stocks is required."})
-
