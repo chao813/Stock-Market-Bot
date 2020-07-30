@@ -1,7 +1,6 @@
 import requests
 import os
 import json
-import sqlite3 as sql
 import config
 
 from flask import Blueprint, request, jsonify
