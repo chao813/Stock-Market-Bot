@@ -14,3 +14,7 @@ class StockDetailsSchema(Schema):
 
 class AddStocksSchema(Schema):
     stocks = fields.Nested(StockDetailsSchema, many=True, required=True, error_messages={"required": "stocks is required."})
+
+class TrackedStocksSchema(Schema):
+    symbol = fields.Str()
+    detailed = fields.Boolean(required=True, error_messages={"required": "decrease is required."})
