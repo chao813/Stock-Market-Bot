@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from marshmallow import ValidationError
 from stocks.stocks import get_stock_quote, calculate_percent_change, get_stock_name, insert_stock_tracker, get_tracked_stocks_details
 from database.database import Database
-from api.schema import StockDifferenceSchema, AddStocksSchema
+from api.schema import StockDifferenceSchema, AddStocksSchema, TrackedStocksSchema
 from logger import configure_logger, get_logger_with_context
 
 load_dotenv()
@@ -64,20 +64,38 @@ def get_tracked_stocks():
     Params: symbol, detailed = True/False 
     If "detailed" = True, show percent difference and last modified date
     """
-    symbol = request.args["symbol"].upper()
-    detailed = request.args["detailed"]
-    
-    tracked_stocks_list = get_tracked_stocks_details(detailed, symbol)
-    if not tracked_stocks_list:
-        logger = get_logger_with_context("")
-        logger.info("Get Tracked Stocks - error: 404 Not Found")
-        return jsonify({}), 404
+    try:
+        data = TrackedStocksSchema().load(request.args.to_dict())
+        if "symbol" in data:
+            symbol = data["symbol"].upper()
+        else:
+            symbol = ""
+        detailed = data["detailed"]
+        
+        tracked_stocks_list = get_tracked_stocks_details(detailed, symbol)
+        if not tracked_stocks_list:
+            logger = get_logger_with_context("")
+            logger.info("Get Tracked Stocks - error: 404 Not Found")
+            return jsonify({}), 404
 
-    resp = jsonify({"status": "success", "data": tracked_stocks_list})
-    resp.status_code = 200 
-    logger = get_logger_with_context("")
-    logger.info("Get Tracked Stocks - status: 200 OK, Tracked Stocks: {tracked_stocks_list}".format(tracked_stocks_list=tracked_stocks_list))
-    return resp
+        resp = jsonify({"status": "success", "data": tracked_stocks_list})
+        resp.status_code = 200 
+        logger = get_logger_with_context("")
+        logger.info("Get Tracked Stocks - status: 200 OK, Tracked Stocks: {tracked_stocks_list}".format(tracked_stocks_list=tracked_stocks_list))
+        return resp
+    except ValidationError as error:
+        resp = jsonify({"error": error.messages}), 400
+        logger = get_logger_with_context("")
+        logger.info("Check Stock Difference - error: 400 Bad Request")
+        return resp
+
+
+@api_bp.route("/stocks/news", methods=["GET"])
+def get_tracked_stocks_news(): 
+    """
+    Show me all the news articles for stocks im tracking, filter by params
+    Params: symbol, from, to 
+    """
 
     
 @api_bp.route("/stocks/tracker", methods=["POST"])
