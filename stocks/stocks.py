@@ -15,6 +15,7 @@ FINNHUB_TOKEN = os.getenv("FINNHUB_TOKEN")
 
 STOCK_QUOTE_URL = "https://finnhub.io/api/v1/quote?token={token}&symbol={symbol}"
 STOCK_PROFILE_URL = "https://finnhub.io/api/v1/stock/profile2?token={token}&symbol={symbol}"
+STOCK_NEWS_URL = "https://finnhub.io/api/v1/company-news?symbol={symbol}&from={from_date}&to={to_date}&token={token}"
 
 http = requests.Session()
 http.mount("https://", TimeoutHTTPAdapter(max_retries=retries))
@@ -43,6 +44,28 @@ def get_stock_name(symbol):
     r = http.get(STOCK_PROFILE_URL.format(token=FINNHUB_TOKEN, symbol=symbol))
     response = r.json()
     return response.get("name")
+
+
+def get_stock_related_news(symbol, from_date, to_date):
+    """
+    Get company news for a given stock symbol
+    response = [
+        {
+        "category": News category.,
+        "datetime": Published time in UNIX timestamp.,
+        "headline": News headline,
+        "id": News ID,
+        "image": Thumbnail image URL,
+        "related": Related stocks and companies mentioned in the article,
+        "source": News source,
+        "summary": News summary,
+        "url": URL of the original article
+        }
+    ] 
+    """
+    r = http.get(STOCK_NEWS_URL.format(token=FINNHUB_TOKEN, symbol=symbol, from_date=from_date, to_date=to_date))
+    response = r.json()
+    return response
 
 
 def calculate_percent_change(response, avg_purchase_cost):
