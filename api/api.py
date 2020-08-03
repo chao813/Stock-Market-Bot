@@ -106,7 +106,10 @@ def get_tracked_stocks_news():
         end = data["end"]
 
     except ValidationError as error:
-        
+        resp = jsonify({"error": error.messages}), 400
+        logger = get_logger_with_context("")
+        logger.info("Check Stock News - error: 400 Bad Request")
+        return resp
 
 
     
