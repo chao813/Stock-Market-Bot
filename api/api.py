@@ -94,8 +94,20 @@ def get_tracked_stocks():
 def get_tracked_stocks_news(): 
     """
     Show me all the news articles for stocks im tracking, filter by params
-    Params: symbol, from, to 
+    Params: symbol, start, end 
     """
+    try:
+        data = TrackedStocksNews().load(request.args.to_dict())
+        if "symbol" in data:
+            symbol = data["symbol"].upper()
+        else:
+            symbol = ""
+        start = data["start"]
+        end = data["end"]
+
+    except ValidationError as error:
+        
+
 
     
 @api_bp.route("/stocks/tracker", methods=["POST"])
