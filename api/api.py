@@ -105,15 +105,13 @@ def get_tracked_stocks_news():
         start = data["start"]
         end = data["end"]
 
-        tracked_stocks_list = get_tracked_stocks_details(False, symbol)
-        if not tracked_stocks_list:
+        tracked_stocks_news_list = get_tracked_stocks_news_details(detailed, symbol, start, end)
+        if not tracked_stocks_news_list:
             logger = get_logger_with_context("")
             logger.info("Get Tracked Stocks News - error: 404 Not Found")
             return jsonify({}), 404
 
-        get_stock_related_news(symbol, from_date, to_date)
-
-        resp = jsonify({"status": "success", "data": tracked_stocks_list})
+        resp = jsonify({"status": "success", "data": tracked_stocks_news_list})
         resp.status_code = 200 
         logger = get_logger_with_context("")
         logger.info("Get Tracked Stocks News- status: 200 OK, Tracked Stocks News:") 
