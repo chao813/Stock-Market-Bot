@@ -23,3 +23,4 @@ class TrackedStocksNews(Schema):
     symbol = fields.Str()
     start = fields.Date(required=True, error_messages={"required": "Start date is required."})
     end = fields.Date(required=True, error_messages={"required": "End date is required."})
+    detailed = fields.Boolean(required=True, error_messages={"required": "decrease is required."})
