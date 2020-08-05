@@ -2,6 +2,7 @@ import requests
 import os
 import json
 import config
+import datetime
 
 from flask import Blueprint, request, jsonify
 from dotenv import load_dotenv
@@ -110,18 +111,20 @@ def construct_tracked_stocks_news(tracked_stocks, detailed, from_date, to_date):
         symbol = stock_profile.get("symbol")
         name = stock_profile.get("name")
         
-        stock_news = get_stock_related_news(symbol, from_date, to_date)
-
-        response = get_stock_quote(symbol)
-        tracked_stock_news_dict = {"symbol": symbol, "name": name}
+        stock_related_news = get_stock_related_news(symbol, from_date, to_date)
+        specific_stock_news = []
+        for news in stock_related_news:
+            current_news_dict = {"headline": news.get("headline"), "url": news.get("url")}
         
-        if detailed:
-            tracked_stock_news_dict["datetime"] = percent_difference
-            tracked_stock_news_dict["last_modified"] = last_modified
-            tracked_stock_news_dict["alert_on_increase"] = increase
-            tracked_stock_news_dict["alert_on_decrease"] = decrease
+            if detailed:
+                current_news_dict["datetime"] = datetime.datetime.fromtimestamp(int(news.get("datetime")).strftime('%Y-%m-%d %H:%M:%S')
+                current_news_dict["source"] = news.get("source")
+                current_news_dict["summary"] = news.get("summary")
+                current_news_dict["related"] = news.get("related")
+            specific_stock_news.append(current_news_dict)
 
-        tracked_stocks_news_list.append(tracked_stock_dict)
+        tracked_stock_news_dict = {"symbol": symbol, "name": name, "news_articles": specific_stock_news}
+        tracked_stocks_news_list.append(tracked_stock_news_dict)
 
     return tracked_stocks_news_list
 
