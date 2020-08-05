@@ -5,9 +5,9 @@ import config
 from flask import Blueprint, request, jsonify
 from dotenv import load_dotenv
 from marshmallow import ValidationError
-from stocks.stocks import get_stock_quote, calculate_percent_change, get_stock_name, insert_stock_tracker, get_tracked_stocks_details
+from stocks.stocks import get_stock_quote, calculate_percent_change, get_stock_name, insert_stock_tracker, get_tracked_stocks_details, get_tracked_stocks_news_details
 from database.database import Database
-from api.schema import StockDifferenceSchema, AddStocksSchema, TrackedStocksSchema
+from api.schema import StockDifferenceSchema, AddStocksSchema, TrackedStocksSchema, TrackedStocksNews
 from logger import configure_logger, get_logger_with_context
 
 load_dotenv()
@@ -104,8 +104,9 @@ def get_tracked_stocks_news():
             symbol = ""
         start = data["start"]
         end = data["end"]
+        detailed = data["detailed"]
 
-        tracked_stocks_news_list = get_tracked_stocks_news_details(detailed, symbol, start, end)
+        tracked_stocks_news_list = get_tracked_stocks_news_details(detailed, start, end, symbol)
         if not tracked_stocks_news_list:
             logger = get_logger_with_context("")
             logger.info("Get Tracked Stocks News - error: 404 Not Found")
