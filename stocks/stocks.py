@@ -97,6 +97,35 @@ def get_list_of_tracked_stocks(symbol):
     return tracked_stocks
 
 
+def construct_tracked_stocks_news(tracked_stocks, detailed, from_date, to_date):
+    if any(stock is None for stock in tracked_stocks):
+        return 
+
+    tracked_stocks_news_list = []
+    for stock_details in tracked_stocks:
+        with Database(config.DATABASE) as db:
+            db.execute("SELECT symbol, name FROM stock WHERE id=%s", [stock_details.get("stock_id")]) 
+            stock_profile = db.fetchone()
+
+        symbol = stock_profile.get("symbol")
+        name = stock_profile.get("name")
+        
+        stock_news = get_stock_related_news(symbol, from_date, to_date)
+
+        response = get_stock_quote(symbol)
+        tracked_stock_news_dict = {"symbol": symbol, "name": name}
+        
+        if detailed:
+            tracked_stock_news_dict["datetime"] = percent_difference
+            tracked_stock_news_dict["last_modified"] = last_modified
+            tracked_stock_news_dict["alert_on_increase"] = increase
+            tracked_stock_news_dict["alert_on_decrease"] = decrease
+
+        tracked_stocks_news_list.append(tracked_stock_dict)
+
+    return tracked_stocks_news_list
+
+
 def construct_tracked_stocks_response(tracked_stocks, detailed):
     if any(stock is None for stock in tracked_stocks):
         return 
