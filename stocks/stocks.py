@@ -169,6 +169,11 @@ def get_tracked_stocks_details(detailed, symbol=None):
     tracked_stocks_response = construct_tracked_stocks_response(tracked_stocks, detailed)
     return tracked_stocks_response
 
+def get_tracked_stocks_news_details(detailed, symbol=None, from_date, to_date):
+    tracked_stocks = get_list_of_tracked_stocks(symbol)
+    tracked_stocks_list_news = construct_tracked_stocks_news(tracked_stocks, detailed, from_date, to_date)
+    return tracked_stocks_news_response
+
 
 def trigger_alert(stocks_increased, stocks_decreased):
     """
