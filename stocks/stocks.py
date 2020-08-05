@@ -117,7 +117,7 @@ def construct_tracked_stocks_news(tracked_stocks, detailed, from_date, to_date):
             current_news_dict = {"headline": news.get("headline"), "url": news.get("url")}
         
             if detailed:
-                current_news_dict["datetime"] = datetime.datetime.fromtimestamp(int(news.get("datetime")).strftime('%Y-%m-%d %H:%M:%S')
+                current_news_dict["datetime"] = datetime.datetime.fromtimestamp(int(news.get("datetime"))).strftime('%Y-%m-%d %H:%M:%S')
                 current_news_dict["source"] = news.get("source")
                 current_news_dict["summary"] = news.get("summary")
                 current_news_dict["related"] = news.get("related")
@@ -169,10 +169,10 @@ def get_tracked_stocks_details(detailed, symbol=None):
     tracked_stocks_response = construct_tracked_stocks_response(tracked_stocks, detailed)
     return tracked_stocks_response
 
-def get_tracked_stocks_news_details(detailed, symbol=None, from_date, to_date):
+def get_tracked_stocks_news_details(detailed, from_date, to_date, symbol=None):
     tracked_stocks = get_list_of_tracked_stocks(symbol)
     tracked_stocks_list_news = construct_tracked_stocks_news(tracked_stocks, detailed, from_date, to_date)
-    return tracked_stocks_news_response
+    return tracked_stocks_list_news
 
 
 def trigger_alert(stocks_increased, stocks_decreased):
