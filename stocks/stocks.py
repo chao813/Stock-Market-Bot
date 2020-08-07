@@ -175,7 +175,7 @@ def get_tracked_stocks_news_details(detailed, from_date, to_date, symbol=None):
     return tracked_stocks_list_news
 
 
-def trigger_alert(stocks_increased, stocks_decreased):
+def trigger_alert(stocks_increased, stocks_decreased, tracked_stocks_news_list):
     """
     Trigger alert given tracked stocks that increased or decreased
     """
@@ -198,7 +198,18 @@ def trigger_alert(stocks_increased, stocks_decreased):
                                     symbol=stock.get("symbol"), name=stock.get("name"), emoji=u'\u2193', 
                                     percent_increase=str(stock.get("percent_decrease"))))
     
-    return increase_alert_message + "\n" + decrease_alert_message 
+    stocks_news_message = "Stock News: \n"
+    if not tracked_stocks_news_list:
+        return increase_alert_message + "\n" + decrease_alert_message 
+    
+    for stock in tracked_stocks_news_list:
+        for news_article in stock.get("news_articles"):
+            stocks_news_message = (stocks_news_message + 
+                                    "[{symbol}]{name} - {headline}\n".format(
+                                    symbol=stock.get("symbol"), name=stock.get("name"), 
+                                    headline=news_article.get("headline")))
+
+    return increase_alert_message + "\n" + decrease_alert_message + "\n" + stocks_news_message
 
 
 def get_tracked_stocks():
@@ -219,4 +230,6 @@ def get_tracked_stocks():
             if abs(stock_detail.get("percent_difference")) >= stock_detail.get("percent_to_track_threshold") and stock_detail.get("percent_difference") < 0:
                 stocks_decreased.append({"symbol": stock_detail.get("symbol"), "name": stock_detail.get("name"), "percent_decrease": stock_detail.get("percent_difference")})
 
-    return trigger_alert(stocks_increased, stocks_decreased)
+
+    tracked_stocks_news_list = get_tracked_stocks_news_details(True, datetime.date.today(), datetime.date.today())
+    return trigger_alert(stocks_increased, stocks_decreased, tracked_stocks_news_list)
