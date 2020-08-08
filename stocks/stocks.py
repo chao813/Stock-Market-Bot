@@ -177,7 +177,7 @@ def get_tracked_stocks_news_details(detailed, from_date, to_date, symbol=None):
 
 def trigger_alert(stocks_increased, stocks_decreased, tracked_stocks_news_list):
     """
-    Trigger alert given tracked stocks that increased or decreased
+    Trigger alert given tracked stocks that increased or decreased and news list
     """
     increase_alert_message = ""
     decrease_alert_message = ""
