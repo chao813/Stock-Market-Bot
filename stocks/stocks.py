@@ -114,14 +114,15 @@ def construct_tracked_stocks_news(tracked_stocks, detailed, from_date, to_date):
         stock_related_news = get_stock_related_news(symbol, from_date, to_date)
         specific_stock_news = []
         for news in stock_related_news:
-            current_news_dict = {"headline": news.get("headline"), "url": news.get("url")}
-        
-            if detailed:
-                current_news_dict["datetime"] = datetime.datetime.fromtimestamp(int(news.get("datetime"))).strftime('%Y-%m-%d %H:%M:%S')
-                current_news_dict["source"] = news.get("source")
-                current_news_dict["summary"] = news.get("summary")
-                current_news_dict["related"] = news.get("related")
-            specific_stock_news.append(current_news_dict)
+            if not any(stock_news.get("headline", None) == news.get("headline") for stock_news in specific_stock_news):
+                current_news_dict = {"headline": news.get("headline"), "url": news.get("url")}
+            
+                if detailed:
+                    current_news_dict["datetime"] = datetime.datetime.fromtimestamp(int(news.get("datetime"))).strftime('%Y-%m-%d %H:%M:%S')
+                    current_news_dict["source"] = news.get("source")
+                    current_news_dict["summary"] = news.get("summary")
+                    current_news_dict["related"] = news.get("related")
+                specific_stock_news.append(current_news_dict)
 
         tracked_stock_news_dict = {"symbol": symbol, "name": name, "news_articles": specific_stock_news}
         tracked_stocks_news_list.append(tracked_stock_news_dict)
