@@ -199,10 +199,10 @@ def trigger_alert(stocks_increased, stocks_decreased, tracked_stocks_news_list):
                                     symbol=stock.get("symbol"), name=stock.get("name"), emoji=u'\u2193', 
                                     percent_increase=str(stock.get("percent_decrease"))))
     
-    stocks_news_message = "Stock News: \n"
     if not tracked_stocks_news_list:
         return increase_alert_message + "\n" + decrease_alert_message 
     
+    stocks_news_message = "Stock News: \n"
     for stock in tracked_stocks_news_list:
         for news_article in stock.get("news_articles"):
             stocks_news_message = (stocks_news_message + 
