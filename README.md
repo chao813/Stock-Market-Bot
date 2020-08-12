@@ -1,3 +1,13 @@
 # Stock-Market-Bot
+Track stock price and receive alerts
 
-Stock market price alert bot
+## Table of Content
+
+* [Features](#features)
+* [API](#API)
+
+## Features
+
+
+## API
+
